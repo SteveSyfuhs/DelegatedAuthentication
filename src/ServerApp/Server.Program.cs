@@ -16,6 +16,8 @@ namespace ServerApp
 
         static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.SetPrincipalPolicy(PrincipalPolicy.WindowsPrincipal);
+
             Console.Title = "Server";
             
             StartServer(

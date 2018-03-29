@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading;
 
@@ -13,6 +14,11 @@ namespace ClientApp
 {
     public class Client
     {
+        static Client()
+        {
+            ServicePointManager.DnsRefreshTimeout = 0;
+        }
+
         public const int DefaultPort = 5555;
 
         private ClientContext context;
@@ -30,7 +36,7 @@ namespace ClientApp
                 port = DefaultPort;
             }
 
-            this.host = host;
+            this.host = host.Trim();
             this.port = port;
 
             var spn = $"host/{host}";
@@ -63,7 +69,7 @@ namespace ClientApp
         public event ReceivedAction Received;
 
         public event Action Disconnected;
-
+        
         public void Start()
         {
             if (this.running)
@@ -76,6 +82,8 @@ namespace ClientApp
                 SocketType.Stream,
                 ProtocolType.Tcp
             );
+
+            Console.WriteLine($"[Client] Resolving host {host}");
 
             IPAddress ipv4Addr;
 
@@ -91,9 +99,9 @@ namespace ClientApp
                 ipv4Addr = IPAddress.Loopback;
             }
 
-            Console.WriteLine($"[Client] Connecting to {host}:{port}");
+            Console.WriteLine($"[Client] Connecting to {ipv4Addr.ToString()}:{port}");
 
-            this.socket.Connect(host, port);
+            this.socket.Connect(ipv4Addr, port);
 
             this.running = true;
 

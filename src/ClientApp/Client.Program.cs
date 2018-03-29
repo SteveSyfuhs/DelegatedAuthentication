@@ -72,6 +72,8 @@ namespace ClientApp
                     {
                         Send(delegatedHost, delegatePort);
 
+                        Thread.Sleep(1500);
+
                         //var task = Task.Run(() =>
                         //{
                         //    Send(delegatedHost, delegatePort);
@@ -88,13 +90,13 @@ namespace ClientApp
         private static void Send(string delegatedHost, int delegatePort)
         {
             client.Send(
-                                            new Message(
-                                                Operation.WhoAmI,
-                                                new byte[0],
-                                                delegatePort: delegatePort,
-                                                delegateHost: delegatedHost
-                                            )
-                                        );
+                new Message(
+                    Operation.WhoAmI,
+                    new byte[0],
+                    delegatePort: delegatePort,
+                    delegateHost: delegatedHost
+                )
+            );
 
             Console.WriteLine($"[Client {Thread.CurrentThread.ManagedThreadId}] send WhoAmI");
         }

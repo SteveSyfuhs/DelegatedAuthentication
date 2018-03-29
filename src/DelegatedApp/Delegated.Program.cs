@@ -15,6 +15,8 @@ namespace DelegatedApp
 
         static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.SetPrincipalPolicy(PrincipalPolicy.WindowsPrincipal);
+
             Console.Title = "Delegate";
             
             while (true)
