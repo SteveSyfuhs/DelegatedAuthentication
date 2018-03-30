@@ -12,6 +12,7 @@ namespace ServerApp
 {
     class Program
     {
+        private static Credential serverCredential;
         private static Server server;
 
         static void Main(string[] args)
@@ -19,15 +20,33 @@ namespace ServerApp
             AppDomain.CurrentDomain.SetPrincipalPolicy(PrincipalPolicy.WindowsPrincipal);
 
             Console.Title = "Server";
-            
+
+            serverCredential = TryCreateCredential(args);
+
             StartServer(
                 TryGet(args, 0, Server.DefaultPort),
-                TryGet(args, 1, ""),
-                TryGet(args, 2, ""),
-                TryGet(args, 3, "")
+                serverCredential
             );
 
             Console.ReadKey();
+        }
+
+        private static Credential TryCreateCredential(string[] args)
+        {
+            var username = TryGet(args, 1, "");
+            var password = TryGet(args, 2, "");
+            var domain = TryGet(args, 3, "");
+
+            if (!string.IsNullOrWhiteSpace(username) &&
+               !string.IsNullOrWhiteSpace(password) &&
+               !string.IsNullOrWhiteSpace(domain))
+            {
+                Console.WriteLine($"Starting as {username}@{domain}: {password}");
+
+                return new PasswordCredential(domain, username, password, PackageNames.Negotiate, CredentialUse.Both);
+            }
+
+            return null;
         }
 
         private static T TryGet<T>(string[] args, int index, T defaultValue = default(T))
@@ -57,25 +76,8 @@ namespace ServerApp
             }
         }
 
-        private static void StartServer(int port, string username, string password, string domain)
+        private static void StartServer(int port, Credential serverCred)
         {
-            Credential serverCred = null;
-
-            if (!string.IsNullOrWhiteSpace(username) &&
-                !string.IsNullOrWhiteSpace(password) &&
-                !string.IsNullOrWhiteSpace(domain))
-            {
-                Console.WriteLine($"Starting as {username}@{domain}: {password}");
-
-                serverCred = new PasswordCredential(
-                    domain, 
-                    username, 
-                    password, 
-                    PackageNames.Negotiate, 
-                    CredentialUse.Both
-                );
-            }
-
             server = new Server(port, serverCred)
             {
                 OnReceived = (m) =>

@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Runtime.Remoting.Messaging;
 using System.Security.Principal;
 using System.Threading;
 
@@ -22,7 +23,7 @@ namespace Shared
         public ServiceRequest(Credential serverCred, Socket readSocket, CancellationToken cancel)
         {
             var identity = Thread.CurrentPrincipal.Identity;
-            
+
             this.readSocket = readSocket;
             this.cancel = cancel;
 
@@ -33,7 +34,8 @@ namespace Shared
                 ContextAttrib.SequenceDetect |
                 ContextAttrib.MutualAuth |
                 ContextAttrib.Delegate |
-                ContextAttrib.Confidentiality
+                ContextAttrib.Confidentiality,
+                setThreadIdentity: true
             );
         }
 
@@ -137,21 +139,6 @@ namespace Shared
             }
         }
 
-        [DllImport("secur32.dll", ExactSpelling = true, SetLastError = true)]
-        internal static extern int QuerySecurityContextToken(ref IntPtr phContext, [Out] out IntPtr handle);
-
-        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr GetCurrentThread();
-
-        [System.Runtime.InteropServices.DllImport("advapi32.dll", SetLastError = true)]
-        private static extern bool OpenThreadToken(IntPtr ThreadHandle,
-        uint DesiredAccess,
-        bool OpenAsSelf,
-        out IntPtr TokenHandle);
-
-        private const int TOKEN_READ = 0x00020008; //From VC\PlatformSDK\Include\Winnt.h
-        private const int TOKEN_IMPERSONATE = 0x0004;
-
         private void SendResponse(Message message)
         {
             Console.WriteLine($"[ServiceRequest] Send Response {message.Operation}");
@@ -194,27 +181,9 @@ namespace Shared
 
                         var imp = this.serverContext.ImpersonateClient();
 
-                        //if (!)
-                        //{
-                        //    throw new Win32Exception(Marshal.GetLastWin32Error());
-                        //}
+                        var identity = Thread.CurrentPrincipal.Identity as WindowsIdentity;
 
-                        OpenThreadToken(GetCurrentThread(), TOKEN_READ | TOKEN_IMPERSONATE, true, out IntPtr hToken);
-
-                        if (hToken != IntPtr.Zero)
-                        {
-                            var identity = new WindowsIdentity(hToken);
-
-                            Thread.CurrentPrincipal = new WindowsPrincipal(identity);
-
-                            Console.WriteLine($"[ServiceRequest] impersonated {identity.Name} | {identity.ImpersonationLevel}");
-
-                            this.initializing = false;
-                        }
-                        else
-                        {
-                            Console.WriteLine("[ServiceRequest] Impersonation failed");
-                        }
+                        Console.WriteLine($"[ServiceRequest] impersonated {identity.Name} | {identity.ImpersonationLevel}");
                     }
                 }
             }

@@ -6,8 +6,8 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Security;
+using System.Security.Principal;
 using System.Threading;
 
 namespace ClientApp
@@ -22,14 +22,14 @@ namespace ClientApp
         public const int DefaultPort = 5555;
 
         private ClientContext context;
-        private ClientCurrentCredential cred;
+        private Credential cred;
 
         private byte[] lastServerToken;
 
         private int port;
         private readonly string host;
 
-        public Client(string host, int port = DefaultPort)
+        public Client(string host, int port = DefaultPort, Credential clientCred = null)
         {
             if (port <= 0)
             {
@@ -43,7 +43,7 @@ namespace ClientApp
 
             Console.WriteLine($"[Client] SPN {spn}");
 
-            this.cred = new ClientCurrentCredential(PackageNames.Negotiate);
+            this.cred = clientCred ?? new ClientCurrentCredential(PackageNames.Negotiate);
 
             this.context = new ClientContext(
                 cred,
@@ -170,9 +170,9 @@ namespace ClientApp
 
         private void DoInit()
         {
-            var id = Thread.CurrentPrincipal;
+            var id = Thread.CurrentPrincipal.Identity as WindowsIdentity;
 
-            Console.WriteLine($"[Client] Calling as {id.Identity.Name}");
+            Console.WriteLine($"[Client] Calling as {id?.Name} | {id?.ImpersonationLevel}");
 
             var serverToken = "";
 
