@@ -27,6 +27,9 @@ You should run these apps on a separate application host. You should also set up
  - Password: P@ssw0rd!
  - SPN (servicePrincipalName): host/delegated.contoso.com
  
+#### S4U Proxy (Protocol Transition)
+ - Username: s4u
+ 
 ### App Host Permissions
 The application needs to run with the `SeImpersonatePrivilege` privilege. Normally you host this sort of process as a Windows Service (e.g. via IIS), which inherits this permission from the service control. In this case you need to assign this privilege since this sample scenario doesn't run as a service. You can do this a few ways.
 
@@ -44,9 +47,12 @@ You need to start the apps in the following order:
  
  1. `PsExec.exe -u contoso\hostserviceacct -p P@ssw0rd! -h -i -d c:\sample\serverapp.exe`
  2. `PsExec.exe -u contoso\appdelegateacct -p P@ssw0rd! -h -i -d c:\sample\delegatedapp.exe`
- 3. `clientapp.exe host.contoso.com 5555 delegated.contoso.com`
+ 3. `clientapp.exe host.contoso.com 5555 delegated.contoso.com 5655`
  
  Note that you may have to open the `5555` and `5655` ports on the firewall.
+ 
+### S4U Impersonation
+You can attempt S4U/Proxy impersonation, AKA "I've just got a username but wan't to impersonate a user for delegation" by passing a 5th parameter to the client app.
  
  ## App Behavior
 The apps work in a `client => service => backend` relay. The client will use the current user's identity and authenticate to the service app. Once the service has authenticated the user, it will forward the original request to the delegated backend app using the current impersonated identity.
