@@ -35,7 +35,7 @@ namespace Shared
                 ContextAttrib.MutualAuth |
                 ContextAttrib.Delegate |
                 ContextAttrib.Confidentiality,
-                setThreadIdentity: true
+                impersonationSetsThreadPrinciple: true // gaaaaaaaahhh
             );
         }
 
@@ -48,31 +48,19 @@ namespace Shared
 
         private void ReadRequestLoop()
         {
-            byte[] readBuffer = new byte[65536];
-            Operation operation;
+            byte[] readBuffer = new byte[4];
+
             int messageLength;
-            int position;
             int remaining;
 
             while (!cancel.IsCancellationRequested)
             {
                 try
                 {
-                    //                          |--4 bytes--|--4 bytes--|---N--|
-                    // Every command is a TLV - | Operation |  Length   | Data |
-
-                    int chunkLength;
-
-                    // Read the operation.
-                    this.readSocket.Receive(readBuffer, 4, SocketFlags.None);
-
-                    // Check if we popped out of a receive call after we were shut down.
                     if (cancel.IsCancellationRequested)
                     {
                         break;
                     }
-
-                    operation = (Operation)ByteWriter.ReadInt32_BE(readBuffer, 0);
 
                     // Read the length
                     this.readSocket.Receive(readBuffer, 4, SocketFlags.None);
@@ -84,12 +72,10 @@ namespace Shared
                         readBuffer = new byte[messageLength];
                     }
 
-                    // Read the data
-                    // Keep in mind that Socket.Receive may return less data than asked for.
-
                     remaining = messageLength;
-                    chunkLength = 0;
-                    position = 0;
+
+                    var chunkLength = 0;
+                    var position = 0;
 
                     while (remaining > 0)
                     {
@@ -115,19 +101,15 @@ namespace Shared
                     }
                 }
 
-                Receive(readBuffer, operation, messageLength);
+                Receive(readBuffer);
             }
         }
 
-        private void Receive(byte[] readBuffer, Operation operation, int messageLength)
+        private void Receive(byte[] readBuffer)
         {
-            byte[] dataCopy = new byte[messageLength];
+            var message = Message.Deserialize(readBuffer);
 
-            Array.Copy(readBuffer, 0, dataCopy, 0, messageLength);
-
-            Message message = new Message(operation, dataCopy);
-
-            Console.WriteLine($"[ServiceRequest] received {operation}");
+            Console.WriteLine($"[ServiceRequest] received {message.Operation}; s4u: {message.S4UToken}");
 
             if (message.Operation == Operation.ClientToken)
             {
@@ -148,12 +130,13 @@ namespace Shared
                 throw new InvalidOperationException("Not connected");
             }
 
-            byte[] outBuffer = new byte[message.Data.Length + 8];
+            var outBuffer = message.Serialize();
 
-            ByteWriter.WriteInt32_BE((int)message.Operation, outBuffer, 0);
-            ByteWriter.WriteInt32_BE(message.Data.Length, outBuffer, 4);
+            var lengthBuffer = new byte[4];
 
-            Array.Copy(message.Data, 0, outBuffer, 8, message.Data.Length);
+            ByteWriter.WriteInt32_BE(outBuffer.Length, lengthBuffer, 0);
+
+            readSocket.Send(lengthBuffer, 0, lengthBuffer.Length, SocketFlags.None, out SocketError error);
 
             readSocket.Send(outBuffer, 0, outBuffer.Length, SocketFlags.None);
         }
@@ -164,7 +147,7 @@ namespace Shared
 
             if (initializing)
             {
-                status = this.serverContext.AcceptToken(message.Data, out byte[] nextToken);
+                status = this.serverContext.AcceptToken(message.Token, out byte[] nextToken);
 
                 Console.WriteLine($"[ServiceRequest] AcceptToken {status} | next {nextToken?.Length ?? 0}");
 
@@ -172,7 +155,7 @@ namespace Shared
                 {
                     if (nextToken != null && nextToken.Length > 0)
                     {
-                        this.SendResponse(new Message(Operation.ServerToken, nextToken));
+                        this.SendResponse(new Message(Operation.ServerToken) { Token = nextToken });
                     }
 
                     if (status == SecurityStatus.OK)

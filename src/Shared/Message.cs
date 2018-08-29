@@ -1,41 +1,72 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Shared
 {
+    [Serializable]
     public class Message
     {
-        public Message(Operation op, byte[] data, int delegatePort = 0, string delegateHost = null)
+        private static readonly BinaryFormatter binaryFormatter = new BinaryFormatter();
+
+        public Message(Operation op)
         {
             this.Operation = op;
-            this.Data = data;
+            //this.Data = data;
 
-            if ((this.Data?.Length ?? 0) <= 0)
+            //if ((this.Data?.Length ?? 0) <= 0)
+            //{
+            //    byte[] portBytes = new byte[0];
+
+            //    if (delegatePort > 0)
+            //    {
+            //        portBytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(delegatePort));
+            //    }
+
+            //    byte[] hostBytes = new byte[0];
+
+            //    if (!string.IsNullOrWhiteSpace(delegateHost))
+            //    {
+            //        hostBytes = Encoding.UTF8.GetBytes(delegateHost);
+            //    }
+
+            //    byte[] s4uBytes = new byte[0];
+
+            //    if (!string.IsNullOrWhiteSpace(s4uToken))
+            //    {
+            //        s4uBytes = new byte[] { (byte)'`' }.Concat(Encoding.UTF8.GetBytes(s4uToken)).ToArray();
+            //    }
+
+            //    this.Data = portBytes.Concat(hostBytes).Concat(s4uBytes).ToArray();
+            //}
+        }
+
+        public Operation Operation { get; set; }
+
+        public byte[] Token { get; internal set; }
+
+        public int DelegatePort { get; set; }
+
+        public string DelegateHost { get; set; }
+
+        public string S4UToken { get; set; }
+
+        public byte[] Serialize()
+        {
+            using (var stream = new MemoryStream())
             {
-                byte[] portBytes = new byte[0];
+                binaryFormatter.Serialize(stream, this);
 
-                if (delegatePort > 0)
-                {
-                    portBytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(delegatePort));
-                }
-
-                byte[] hostBytes = new byte[0];
-
-                if (!string.IsNullOrWhiteSpace(delegateHost))
-                {
-                    hostBytes = Encoding.UTF8.GetBytes(delegateHost);
-                }
-
-                this.Data = portBytes.Concat(hostBytes).ToArray();
+                return stream.ToArray();
             }
         }
 
-        public Operation Operation { get; private set; }
-
-        public byte[] Data { get; private set; }
+        public static Message Deserialize(byte[] dataCopy)
+        {
+            using (var stream = new MemoryStream(dataCopy))
+            {
+                return (Message)binaryFormatter.Deserialize(stream);
+            }
+        }
     }
 }

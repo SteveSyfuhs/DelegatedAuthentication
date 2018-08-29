@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Principal;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,6 +14,14 @@ namespace ClientApp
 
         static void Main(string[] args)
         {
+            Console.WriteLine("");
+
+            Console.WriteLine("Usage: ClientApp.exe <host> <host-port> <delegated-host> <delegated-host-port> [<s4u-username>]");
+            Console.WriteLine("");
+
+            Console.WriteLine("Example: ClientApp.exe service.contoso.com 5555 delegated.contoso.com 5655 s4u");
+            Console.WriteLine("");
+
             AppDomain.CurrentDomain.SetPrincipalPolicy(PrincipalPolicy.WindowsPrincipal);
 
             Console.Title = "Client";
@@ -22,6 +31,7 @@ namespace ClientApp
 
             int port = Client.DefaultPort;
             int delegatePort = port + 100;
+            string s4uProxyUser = null;
 
             if (args.Length > 0)
             {
@@ -41,6 +51,11 @@ namespace ClientApp
                 {
                     delegatePort = port + 100;
                 }
+
+                if (args.Length > 4)
+                {
+                    s4uProxyUser = args[4];
+                }
             }
 
             host = host ?? "localhost";
@@ -48,6 +63,10 @@ namespace ClientApp
             delegatedHost = delegatedHost ?? host ?? "localhost";
 
             Console.WriteLine($"[Client] Connecting to {host}:{port}");
+
+            var authenticate = string.IsNullOrWhiteSpace(s4uProxyUser);
+
+            Console.WriteLine($"Should auto authenticate: {authenticate}; s4u: {s4uProxyUser}");
 
             new ManualResetEvent(false).WaitOne(TimeSpan.FromSeconds(10));
 
@@ -61,7 +80,7 @@ namespace ClientApp
                 {
                     if (disconnected)
                     {
-                        StartClient(host, port);
+                        StartClient(host, port, authenticate);
 
                         client.Disconnected += () => { disconnected = true; Thread.Sleep(50); };
 
@@ -70,7 +89,7 @@ namespace ClientApp
 
                     if (!disconnected)
                     {
-                        Send(delegatedHost, delegatePort);
+                        Send(delegatedHost, delegatePort, s4uProxyUser);
 
                         Thread.Sleep(1500);
 
@@ -87,25 +106,25 @@ namespace ClientApp
             }
         }
 
-        private static void Send(string delegatedHost, int delegatePort)
+        private static void Send(string delegatedHost, int delegatePort, string s4uProxyUser)
         {
-            client.Send(
-                new Message(
-                    Operation.WhoAmI,
-                    new byte[0],
-                    delegatePort: delegatePort,
-                    delegateHost: delegatedHost
-                )
-            );
+            var message = new Message(Operation.WhoAmI)
+            {
+                DelegateHost = delegatedHost,
+                DelegatePort = delegatePort,
+                S4UToken = s4uProxyUser
+            };
 
-            Console.WriteLine($"[Client {Thread.CurrentThread.ManagedThreadId}] send WhoAmI");
+            client.Send(message);
+
+            Console.WriteLine($"[Client {Thread.CurrentThread.ManagedThreadId}] send {message.Operation}");
         }
 
-        private static void StartClient(string host, int port)
+        private static void StartClient(string host, int port, bool authenticate)
         {
             client = new Client(host, port);
 
-            client.Start();
+            client.Start(authenticate);
         }
     }
 }

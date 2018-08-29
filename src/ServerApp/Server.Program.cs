@@ -106,10 +106,7 @@ namespace ServerApp
             switch (m.Operation)
             {
                 case Operation.WhoAmI:
-                    if ((m.Data?.Length ?? 0) > 0)
-                    {
-                        RelayDelegated(m);
-                    }
+                    RelayDelegated(m);
                     break;
             }
         }
@@ -120,27 +117,33 @@ namespace ServerApp
 
             Console.WriteLine($"[Server] Impersonated {id.Name} | {id.ImpersonationLevel}");
 
-            var portBytes = m.Data.Take(4).ToArray();
-            var hostBytes = m.Data.Skip(4).ToArray();
+            WindowsImpersonationContext impersonation = null;
 
-            if (BitConverter.IsLittleEndian)
+            if (!string.IsNullOrWhiteSpace(m.S4UToken))
             {
-                Array.Reverse(portBytes);
+                Console.WriteLine($"[Server] S4U token received {m.S4UToken}");
+
+                id = new WindowsIdentity(m.S4UToken);
+
+                impersonation = id.Impersonate();
+
+                Thread.CurrentPrincipal = new WindowsPrincipal(id);
+
+                Console.WriteLine($"[Server] S4U Impersonated {id.Name} | {id.ImpersonationLevel}");
             }
 
-            var delegatePort = BitConverter.ToInt32(portBytes, 0);
-            var delegatedHost = Encoding.UTF8.GetString(hostBytes);
+            Console.WriteLine($"[Server] Relaying to {m.DelegateHost}:{m.DelegatePort}");
 
-            Console.WriteLine($"Relaying to {delegatedHost}:{delegatePort}");
-
-            var delegateClient = new Client(delegatedHost, delegatePort);
+            var delegateClient = new Client(m.DelegateHost, m.DelegatePort);
             delegateClient.Start();
 
-            delegateClient.Send(new Message(m.Operation, m.Data));
+            delegateClient.Send(Message.Deserialize(m.Serialize()));
 
             Thread.Sleep(1500);
 
             delegateClient.Stop();
+
+            impersonation?.Dispose();
 
             Console.WriteLine();
             Console.WriteLine();

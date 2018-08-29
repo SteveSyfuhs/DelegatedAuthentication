@@ -21,8 +21,8 @@ namespace ClientApp
 
         public const int DefaultPort = 5555;
 
-        private ClientContext context;
-        private Credential cred;
+        private readonly ClientContext context;
+        private readonly Credential cred;
 
         private byte[] lastServerToken;
 
@@ -69,8 +69,8 @@ namespace ClientApp
         public event ReceivedAction Received;
 
         public event Action Disconnected;
-        
-        public void Start()
+
+        public void Start(bool authenticate = true)
         {
             if (this.running)
             {
@@ -112,7 +112,14 @@ namespace ClientApp
 
             this.receiveThread.Start();
 
-            DoInit();
+            if (authenticate)
+            {
+                DoInit();
+            }
+            else
+            {
+                waitForAuthentication.Set();
+            }
         }
 
         public void Stop()
@@ -148,18 +155,15 @@ namespace ClientApp
                 throw new InvalidOperationException("Not connected");
             }
 
-            byte[] outBuffer = new byte[message.Data.Length + 8];
-            int position = 0;
+            var outBuffer = message.Serialize();
 
-            ByteWriter.WriteInt32_BE((int)message.Operation, outBuffer, position);
-            position += 4;
+            var lengthBuffer = new byte[4];
 
-            ByteWriter.WriteInt32_BE(message.Data.Length, outBuffer, position);
-            position += 4;
+            ByteWriter.WriteInt32_BE(outBuffer.Length, lengthBuffer, 0);
 
-            Array.Copy(message.Data, 0, outBuffer, position, message.Data.Length);
+            this.socket.Send(lengthBuffer, 0, lengthBuffer.Length, SocketFlags.None, out SocketError error);
 
-            this.socket.Send(outBuffer, 0, outBuffer.Length, SocketFlags.None, out SocketError error);
+            this.socket.Send(outBuffer, 0, outBuffer.Length, SocketFlags.None, out error);
 
             waitForCompletion.Set();
         }
@@ -193,7 +197,7 @@ namespace ClientApp
             {
                 Console.WriteLine("[Client] token " + Convert.ToBase64String(outToken));
 
-                Message message = new Message(Operation.ClientToken, outToken);
+                Message message = new Message(Operation.ClientToken) { Token = outToken };
 
                 this.SendInternal(message);
             }
@@ -225,13 +229,7 @@ namespace ClientApp
 
         private void ReadResponseLoop()
         {
-            byte[] readBuffer = new byte[65536];
-
-            Operation operation;
-            int messageLength;
-            int remaining;
-            int chunkLength;
-            int position;
+            byte[] readBuffer = new byte[4];
 
             while (this.running)
             {
@@ -243,31 +241,21 @@ namespace ClientApp
 
                 try
                 {
-                    //                          |--4 bytes--|--4 bytes--|---N--|
-                    // Every command is a TLV - | Operation |  Length   | Data |
-
-                    // Read the operation.
-                    this.socket.Receive(readBuffer, 4, SocketFlags.None);
-
-                    // Check if we popped out of a receive call after we were shut down.
                     if (this.running == false) { break; }
 
-                    operation = (Operation)ByteWriter.ReadInt32_BE(readBuffer, 0);
-
-                    // Read the length
                     this.socket.Receive(readBuffer, 4, SocketFlags.None);
-                    messageLength = ByteWriter.ReadInt32_BE(readBuffer, 0);
+
+                    var messageLength = ByteWriter.ReadInt32_BE(readBuffer, 0);
 
                     if (readBuffer.Length < messageLength)
                     {
                         readBuffer = new byte[messageLength];
                     }
 
-                    // Read the data
-                    // Keep in mind that Socket.Receive may return less data than asked for.
-                    remaining = messageLength;
-                    chunkLength = 0;
-                    position = 0;
+                    var remaining = messageLength;
+                    var chunkLength = 0;
+                    var position = 0;
+
                     while (remaining > 0)
                     {
                         chunkLength = this.socket.Receive(readBuffer, position, remaining, SocketFlags.None);
@@ -292,15 +280,13 @@ namespace ClientApp
                     }
                 }
 
-                byte[] dataCopy = new byte[messageLength];
-                Array.Copy(readBuffer, 0, dataCopy, 0, messageLength);
-                Message message = new Message(operation, dataCopy);
+                Message message = Message.Deserialize(readBuffer);
 
                 Console.WriteLine($"[Client] Operation {message.Operation}");
 
                 if (message.Operation == Operation.ServerToken)
                 {
-                    this.lastServerToken = message.Data;
+                    this.lastServerToken = message.Token;
 
                     DoInit();
                 }

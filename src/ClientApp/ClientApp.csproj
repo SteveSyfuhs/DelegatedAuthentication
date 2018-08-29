@@ -32,9 +32,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="NSspi, Version=0.2.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\NSspi.0.2.0\lib\net40\NSspi.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -53,6 +50,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\NSspi\NSspi.csproj">
+      <Project>{4b4cd933-bf62-4f92-b8fa-6771758c5197}</Project>
+      <Name>NSspi</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Shared\Shared.csproj">
       <Project>{E0BDD6A3-67B3-4765-AD7F-54241AFD51D9}</Project>
       <Name>Shared</Name>
