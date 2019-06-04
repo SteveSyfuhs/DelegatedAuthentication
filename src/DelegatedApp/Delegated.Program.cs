@@ -1,6 +1,4 @@
-﻿using NSspi;
-using NSspi.Credentials;
-using ServerApp;
+﻿using ServerApp;
 using Shared;
 using System;
 using System.Security.Principal;
@@ -18,7 +16,7 @@ namespace DelegatedApp
             AppDomain.CurrentDomain.SetPrincipalPolicy(PrincipalPolicy.WindowsPrincipal);
 
             Console.Title = "Delegate";
-            
+
             while (true)
             {
                 try
@@ -32,7 +30,7 @@ namespace DelegatedApp
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("[DelegateReceive] Error: " + ex.ToString());
+                    ContextDebugger.WriteLine("[DelegateReceive] Error: " + ex.ToString());
                 }
             };
         }
@@ -64,15 +62,9 @@ namespace DelegatedApp
                 !string.IsNullOrWhiteSpace(password) &&
                 !string.IsNullOrWhiteSpace(domain))
             {
-                Console.WriteLine($"Starting as {username}@{domain}: {password}");
+                ContextDebugger.WriteLine($"Starting as {username}@{domain}: {password}");
 
-                serverCred = new PasswordCredential(
-                    domain,
-                    username,
-                    password,
-                    PackageNames.Negotiate,
-                    CredentialUse.Both
-                );
+                serverCred = new PasswordCredential(username, password, domain);
             }
             restart = new ManualResetEvent(false);
 
@@ -93,7 +85,7 @@ namespace DelegatedApp
 
             server.OnError += (s, e) =>
             {
-                Console.WriteLine("[Delegated] Error: " + e.ExceptionObject);
+                ContextDebugger.WriteLine("[Delegated] Error: " + e.ExceptionObject);
             };
 
             server.Stopped += () =>
@@ -116,7 +108,7 @@ namespace DelegatedApp
                     var name = identity?.Name;
                     var imp = identity?.ImpersonationLevel;
 
-                    Console.WriteLine($"[Delegated] WhoAmI: {name} | {imp}");
+                    ContextDebugger.WriteLine($"[Delegated] WhoAmI: {name} | {imp}");
 
                     break;
             }

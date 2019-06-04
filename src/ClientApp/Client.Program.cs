@@ -14,13 +14,13 @@ namespace ClientApp
 
         static void Main(string[] args)
         {
-            Console.WriteLine("");
+            ContextDebugger.WriteLine("");
 
-            Console.WriteLine("Usage: ClientApp.exe <host> <host-port> <delegated-host> <delegated-host-port> [<s4u-username>]");
-            Console.WriteLine("");
+            ContextDebugger.WriteLine("Usage: ClientApp.exe <host> <host-port> <delegated-host> <delegated-host-port> [<s4u-username>]");
+            ContextDebugger.WriteLine("");
 
-            Console.WriteLine("Example: ClientApp.exe service.contoso.com 5555 delegated.contoso.com 5655 s4u");
-            Console.WriteLine("");
+            ContextDebugger.WriteLine("Example: ClientApp.exe service.contoso.com 5555 delegated.contoso.com 5655 s4u");
+            ContextDebugger.WriteLine("");
 
             AppDomain.CurrentDomain.SetPrincipalPolicy(PrincipalPolicy.WindowsPrincipal);
 
@@ -62,13 +62,19 @@ namespace ClientApp
 
             delegatedHost = delegatedHost ?? host ?? "localhost";
 
-            Console.WriteLine($"[Client] Connecting to {host}:{port}");
+            ContextDebugger.WriteLine($"[Client] Connecting to {host}:{port}");
 
             var authenticate = string.IsNullOrWhiteSpace(s4uProxyUser);
 
-            Console.WriteLine($"Should auto authenticate: {authenticate}; s4u: {s4uProxyUser}");
+            ContextDebugger.WriteLine($"Should auto authenticate: {authenticate}; s4u: {s4uProxyUser}");
 
-            new ManualResetEvent(false).WaitOne(TimeSpan.FromSeconds(10));
+            for (var i = 0; i < 10; i++)
+            {
+                ContextDebugger.Write(".");
+                new ManualResetEvent(false).WaitOne(TimeSpan.FromSeconds(1));
+            }
+
+            ContextDebugger.WriteLine();
 
             bool disconnected = true;
 
@@ -117,7 +123,7 @@ namespace ClientApp
 
             client.Send(message);
 
-            Console.WriteLine($"[Client {Thread.CurrentThread.ManagedThreadId}] send {message.Operation}");
+            ContextDebugger.WriteLine($"[Client {Thread.CurrentThread.ManagedThreadId}] send {message.Operation}");
         }
 
         private static void StartClient(string host, int port, bool authenticate)

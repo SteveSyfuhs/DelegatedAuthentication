@@ -1,7 +1,4 @@
-﻿using NSspi;
-using NSspi.Contexts;
-using NSspi.Credentials;
-using Shared;
+﻿using Shared;
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -17,7 +14,7 @@ namespace ServerApp
 
         public Server(int port = DefaultPort, Credential serverCred = null)
         {
-            Console.WriteLine($"[Server] Running As {Thread.CurrentPrincipal.Identity.Name}");
+            ContextDebugger.WriteLine($"[Server] Running As {Thread.CurrentPrincipal.Identity.Name}");
 
             if (port <= 0)
             {
@@ -38,7 +35,7 @@ namespace ServerApp
 
         public event Action Stopped;
 
-        private CancellationTokenSource cancel = new CancellationTokenSource();
+        private readonly CancellationTokenSource cancel = new CancellationTokenSource();
 
         public Action<Message> OnReceived { get; set; }
 
@@ -68,7 +65,7 @@ namespace ServerApp
 
             this.receiveThread.Start();
 
-            Console.WriteLine($"[Server] listening on ({port})");
+            ContextDebugger.WriteLine($"[Server] listening on ({port})");
         }
 
         public void Stop()
@@ -97,9 +94,9 @@ namespace ServerApp
                 {
                     if (serverCred == null)
                     {
-                        serverCred = new ServerCurrentCredential(PackageNames.Negotiate);
+                        serverCred = Credential.Current();
 
-                        Console.WriteLine("[Server] Creating Server Cred");
+                        ContextDebugger.WriteLine("[Server] Creating Server Cred");
                     }
 
                     var request = new ServiceRequest(serverCred, this.serverSocket.Accept(), cancel.Token)
@@ -118,7 +115,7 @@ namespace ServerApp
             {
                 this.running = false;
 
-                Console.WriteLine("STOPPED");
+                ContextDebugger.WriteLine("STOPPED");
 
                 this.Stopped?.Invoke();
             }

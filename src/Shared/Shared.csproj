@@ -20,6 +20,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -28,6 +29,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -41,20 +43,30 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Client.cs" />
+    <Compile Include="ContextDebugger.cs" />
+    <Compile Include="ContextFlag.cs" />
+    <Compile Include="ContextStatus.cs" />
+    <Compile Include="Credential.cs" />
+    <Compile Include="DebugExtensions.cs" />
+    <Compile Include="Endian.cs" />
+    <Compile Include="ImpersonationContext.cs" />
+    <Compile Include="KeytabCredential.cs" />
     <Compile Include="Message.cs" />
+    <Compile Include="NativeMethods.cs" />
     <Compile Include="Operation.cs" />
+    <Compile Include="PasswordCredential.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SecStatus.cs" />
+    <Compile Include="SecurityContext.cs" />
+    <Compile Include="SecurityContextAttribute.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="ServiceRequest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\NSspi\NSspi.csproj">
-      <Project>{4b4cd933-bf62-4f92-b8fa-6771758c5197}</Project>
-      <Name>NSspi</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>copy $(TargetDir)*.* $(SolutionDir)bin\</PostBuildEvent>
+  </PropertyGroup>
 </Project>

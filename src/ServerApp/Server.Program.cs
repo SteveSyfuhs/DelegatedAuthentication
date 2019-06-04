@@ -1,11 +1,7 @@
 ﻿using ClientApp;
-using NSspi;
-using NSspi.Credentials;
 using Shared;
 using System;
-using System.Linq;
 using System.Security.Principal;
-using System.Text;
 using System.Threading;
 
 namespace ServerApp
@@ -41,15 +37,15 @@ namespace ServerApp
                !string.IsNullOrWhiteSpace(password) &&
                !string.IsNullOrWhiteSpace(domain))
             {
-                Console.WriteLine($"Starting as {username}@{domain}: {password}");
+                ContextDebugger.WriteLine($"Starting as {username}@{domain}: {password}");
 
-                return new PasswordCredential(domain, username, password, PackageNames.Negotiate, CredentialUse.Both);
+                return new PasswordCredential(domain, username, password);
             }
 
             return null;
         }
 
-        private static T TryGet<T>(string[] args, int index, T defaultValue = default(T))
+        private static T TryGet<T>(string[] args, int index, T defaultValue = default)
         {
             if ((args?.Length ?? 0) <= index)
             {
@@ -88,14 +84,14 @@ namespace ServerApp
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("ReceiveError: " + ex.ToString());
+                        ContextDebugger.WriteLine("ReceiveError: " + ex.ToString());
                     }
                 }
             };
 
             server.OnError += (s, e) =>
             {
-                Console.WriteLine("Error: " + e.ExceptionObject.ToString());
+                ContextDebugger.WriteLine("Error: " + e.ExceptionObject.ToString());
             };
 
             server.Start();
@@ -115,13 +111,13 @@ namespace ServerApp
         {
             var id = Thread.CurrentPrincipal.Identity as WindowsIdentity;
 
-            Console.WriteLine($"[Server] Impersonated {id.Name} | {id.ImpersonationLevel}");
+            ContextDebugger.WriteLine($"[Server] Impersonated {id.Name} | {id.ImpersonationLevel}");
 
             WindowsImpersonationContext impersonation = null;
 
             if (!string.IsNullOrWhiteSpace(m.S4UToken))
             {
-                Console.WriteLine($"[Server] S4U token received {m.S4UToken}");
+                ContextDebugger.WriteLine($"[Server] S4U token received {m.S4UToken}");
 
                 id = new WindowsIdentity(m.S4UToken);
 
@@ -129,10 +125,10 @@ namespace ServerApp
 
                 Thread.CurrentPrincipal = new WindowsPrincipal(id);
 
-                Console.WriteLine($"[Server] S4U Impersonated {id.Name} | {id.ImpersonationLevel}");
+                ContextDebugger.WriteLine($"[Server] S4U Impersonated {id.Name} | {id.ImpersonationLevel}");
             }
 
-            Console.WriteLine($"[Server] Relaying to {m.DelegateHost}:{m.DelegatePort}");
+            ContextDebugger.WriteLine($"[Server] Relaying to {m.DelegateHost}:{m.DelegatePort}");
 
             var delegateClient = new Client(m.DelegateHost, m.DelegatePort);
             delegateClient.Start();
@@ -145,8 +141,8 @@ namespace ServerApp
 
             impersonation?.Dispose();
 
-            Console.WriteLine();
-            Console.WriteLine();
+            ContextDebugger.WriteLine();
+            ContextDebugger.WriteLine();
         }
     }
 }

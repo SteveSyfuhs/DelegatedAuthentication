@@ -12,33 +12,6 @@ namespace Shared
         public Message(Operation op)
         {
             this.Operation = op;
-            //this.Data = data;
-
-            //if ((this.Data?.Length ?? 0) <= 0)
-            //{
-            //    byte[] portBytes = new byte[0];
-
-            //    if (delegatePort > 0)
-            //    {
-            //        portBytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(delegatePort));
-            //    }
-
-            //    byte[] hostBytes = new byte[0];
-
-            //    if (!string.IsNullOrWhiteSpace(delegateHost))
-            //    {
-            //        hostBytes = Encoding.UTF8.GetBytes(delegateHost);
-            //    }
-
-            //    byte[] s4uBytes = new byte[0];
-
-            //    if (!string.IsNullOrWhiteSpace(s4uToken))
-            //    {
-            //        s4uBytes = new byte[] { (byte)'`' }.Concat(Encoding.UTF8.GetBytes(s4uToken)).ToArray();
-            //    }
-
-            //    this.Data = portBytes.Concat(hostBytes).Concat(s4uBytes).ToArray();
-            //}
         }
 
         public Operation Operation { get; set; }

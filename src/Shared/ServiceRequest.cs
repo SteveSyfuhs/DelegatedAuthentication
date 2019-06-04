@@ -1,11 +1,5 @@
-﻿using NSspi;
-using NSspi.Contexts;
-using NSspi.Credentials;
-using System;
-using System.ComponentModel;
+﻿using System;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using System.Runtime.Remoting.Messaging;
 using System.Security.Principal;
 using System.Threading;
 
@@ -16,26 +10,16 @@ namespace Shared
         private readonly Socket readSocket;
         private readonly CancellationToken cancel;
 
-        private bool initializing = true;
-
-        private readonly ServerContext serverContext;
+        private readonly SecurityContext serverContext;
 
         public ServiceRequest(Credential serverCred, Socket readSocket, CancellationToken cancel)
         {
-            var identity = Thread.CurrentPrincipal.Identity;
-
             this.readSocket = readSocket;
             this.cancel = cancel;
 
-            this.serverContext = new ServerContext(
+            this.serverContext = new SecurityContext(
                 serverCred,
-                ContextAttrib.AcceptIntegrity |
-                ContextAttrib.ReplayDetect |
-                ContextAttrib.SequenceDetect |
-                ContextAttrib.MutualAuth |
-                ContextAttrib.Delegate |
-                ContextAttrib.Confidentiality,
-                impersonationSetsThreadPrinciple: true // gaaaaaaaahhh
+                "Negotiate"                
             );
         }
 
@@ -63,9 +47,10 @@ namespace Shared
                     }
 
                     // Read the length
+
                     this.readSocket.Receive(readBuffer, 4, SocketFlags.None);
 
-                    messageLength = ByteWriter.ReadInt32_BE(readBuffer, 0);
+                    messageLength = Endian.ConvertFromBigEndian(readBuffer);
 
                     if (readBuffer.Length < messageLength)
                     {
@@ -109,7 +94,7 @@ namespace Shared
         {
             var message = Message.Deserialize(readBuffer);
 
-            Console.WriteLine($"[ServiceRequest] received {message.Operation}; s4u: {message.S4UToken}");
+            ContextDebugger.WriteLine($"[ServiceRequest] received {message.Operation}; s4u: {message.S4UToken}");
 
             if (message.Operation == Operation.ClientToken)
             {
@@ -123,7 +108,7 @@ namespace Shared
 
         private void SendResponse(Message message)
         {
-            Console.WriteLine($"[ServiceRequest] Send Response {message.Operation}");
+            ContextDebugger.WriteLine($"[ServiceRequest] Send Response {message.Operation}");
 
             if (cancel.IsCancellationRequested)
             {
@@ -134,40 +119,39 @@ namespace Shared
 
             var lengthBuffer = new byte[4];
 
-            ByteWriter.WriteInt32_BE(outBuffer.Length, lengthBuffer, 0);
+            Endian.ConvertToBigEndian(outBuffer.Length, lengthBuffer);
 
             readSocket.Send(lengthBuffer, 0, lengthBuffer.Length, SocketFlags.None, out SocketError error);
 
             readSocket.Send(outBuffer, 0, outBuffer.Length, SocketFlags.None);
         }
 
+        private int tripCount = 0;
+
         private void HandleInit(Message message)
         {
-            SecurityStatus status;
+            var status = this.serverContext.AcceptSecurityContext(message.Token, out byte[] nextToken);
 
-            if (initializing)
+            ContextDebugger.WriteLine($"[ServiceRequest] AcceptToken {status} | trip {tripCount} | next {nextToken?.Length ?? 0}");
+
+            tripCount++;
+
+            if (status == ContextStatus.Accepted || status == ContextStatus.RequiresContinuation)
             {
-                status = this.serverContext.AcceptToken(message.Token, out byte[] nextToken);
-
-                Console.WriteLine($"[ServiceRequest] AcceptToken {status} | next {nextToken?.Length ?? 0}");
-
-                if (status == SecurityStatus.OK || status == SecurityStatus.ContinueNeeded)
+                if (nextToken != null && nextToken.Length > 0)
                 {
-                    if (nextToken != null && nextToken.Length > 0)
-                    {
-                        this.SendResponse(new Message(Operation.ServerToken) { Token = nextToken });
-                    }
+                    this.SendResponse(new Message(Operation.ServerToken) { Token = nextToken });
+                }
 
-                    if (status == SecurityStatus.OK)
-                    {
-                        Console.WriteLine($"[ServiceRequest] context user {this.serverContext.ContextUserName}");
+                if (status == ContextStatus.Accepted)
+                {
+                    ContextDebugger.WriteLine($"[ServiceRequest] context user {this.serverContext.UserName}");
 
-                        var imp = this.serverContext.ImpersonateClient();
+                    var imp = this.serverContext.ImpersonateClient();
 
-                        var identity = Thread.CurrentPrincipal.Identity as WindowsIdentity;
+                    var identity = Thread.CurrentPrincipal.Identity as WindowsIdentity;
 
-                        Console.WriteLine($"[ServiceRequest] impersonated {identity.Name} | {identity.ImpersonationLevel}");
-                    }
+                    ContextDebugger.WriteLine($"[ServiceRequest] impersonated {identity.Name} | {identity.ImpersonationLevel}");
                 }
             }
         }

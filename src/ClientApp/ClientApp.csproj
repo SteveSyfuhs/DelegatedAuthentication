@@ -50,14 +50,13 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\NSspi\NSspi.csproj">
-      <Project>{4b4cd933-bf62-4f92-b8fa-6771758c5197}</Project>
-      <Name>NSspi</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Shared\Shared.csproj">
       <Project>{E0BDD6A3-67B3-4765-AD7F-54241AFD51D9}</Project>
       <Name>Shared</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>copy $(TargetPath) $(SolutionDir)bin\</PostBuildEvent>
+  </PropertyGroup>
 </Project>
